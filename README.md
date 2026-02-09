@@ -1,26 +1,50 @@
 # OrderlyAI CRM
 
-A React webapp CRM for viewing **bookings**, **chat history**, **analytics dashboards**, and **PDF documents**.
+A React CRM for hotel staff: **chat history**, **bookings**, **documents**, and **analytics** (messages, bookings, conversations, guests). Uses the OrderlyAI design system (glass, shadows, soft mid-tone backgrounds, green accent).
 
 ## Tech stack
 
 - **React 19** + **TypeScript**
-- **Vite 7** for dev and build
+- **Vite 7** + **react-router-dom** + **recharts**
 
 ## Getting started
 
+1. **Environment**
+
+   Copy `.env.example` to `.env` and set your backend base URL:
+
+   ```bash
+   cp .env.example .env
+   # Edit .env: VITE_API_BASE_URL=https://your-api.example.com
+   ```
+
+2. **Install and run**
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+   Open the URL shown (e.g. http://localhost:5173). Sign in at `/login`; all other routes require a valid JWT and admin role.
+
+## Features
+
+- **Auth:** Login, Forgot password, Reset password (token from email link).
+- **Chat history:** List conversations (filters: status, date range, guest phone, search); open a thread to view messages and attachments.
+- **Bookings:** List with filters (status, platform, date range) and pagination.
+- **Documents:** List property documents; replace a document (file upload) via modal.
+- **Analytics:** Four views with shared date range (and optional “by day” / top N):
+  - **Messages** – total, by platform, by type (booking vs concierge), daily series.
+  - **Bookings** – total, conversion funnel, by platform/source, avg length of stay, over time.
+  - **Conversations** – total sessions, peak by hour, sessions per guest, over time.
+  - **Guests** – new vs returning, top guests by booking count, channel mix.
+
+All property-scoped requests use `user.propertyId` from the login response. Send `Authorization: Bearer <access_token>` on every request except login, forgot-password, and reset-password.
+
+## Build
+
 ```bash
-npm install
-npm run dev
+npm run build
 ```
 
-## Planned features
-
-- **Bookings** – View and manage bookings
-- **Chat history** – Browse and search conversation history
-- **Analytics dashboards** – Metrics and visualizations
-- **PDF documents** – View and manage PDFs
-
----
-
-*Planning and build details to be added next.*
+Output is in `dist/`.

@@ -1,0 +1,13 @@
+.sidebar-nav .sidebar-nav-btn {
+  width: 100%;
+  border: none;
+  background: none;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sidebar-nav .sidebar-nav-btn:hover {
+  background: var(--glass);
+}
