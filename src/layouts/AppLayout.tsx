@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import Logo from '../components/Logo';
 import Modal from '../components/Modal';
 import { useAuth } from '../auth/AuthContext';
+import SidebarBrand from '../components/SidebarBrand';
 import './AppLayout.css';
 
 const navItems = [
@@ -26,8 +26,7 @@ export default function AppLayout() {
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const userEmail = user?.email ?? '';
+  const { logout } = useAuth();
   const pageTitle = getPageTitle(location.pathname);
 
   const handleLogoutClick = () => {
@@ -46,10 +45,9 @@ export default function AppLayout() {
       <a href="#app-content" className="skip-link">Skip to main content</a>
       <div className={`sidebar-backdrop ${sidebarOpen ? 'visible' : ''}`} onClick={() => setSidebarOpen(false)} aria-hidden />
       <aside className={`app-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <Logo variant="compact" showLabel to="/chat" />
-        </div>
-        <nav className="sidebar-nav">
+        <SidebarBrand to="/chat" />
+        <nav className="sidebar-nav" aria-label="Main navigation">
+          <div className="sidebar-section-header sidebar-section-header-first">Navigation</div>
           {navItems.map(({ to, label, icon }) => (
             <Link
               key={to}
@@ -61,7 +59,7 @@ export default function AppLayout() {
               {label}
             </Link>
           ))}
-          <div className="sidebar-section-header">Account</div>
+          <div className="sidebar-section-header">ACCOUNT</div>
           <button type="button" className="sidebar-nav-btn" onClick={handleLogoutClick}>
             <span className="sidebar-nav-icon" aria-hidden>⎋</span>
             Log out
@@ -76,12 +74,6 @@ export default function AppLayout() {
                 <span className="header-menu-icon" aria-hidden>☰</span>
               </button>
               <span className="app-header-page-title">{pageTitle}</span>
-              <span className="app-header-logo-wrap">
-                <Logo variant="compact" showLabel to="/chat" className="app-header-logo" />
-              </span>
-            </div>
-            <div className="app-header-user-wrap" title={userEmail}>
-              <span className="app-header-user-email">{userEmail}</span>
             </div>
           </div>
         </header>

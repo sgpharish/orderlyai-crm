@@ -6,6 +6,8 @@ import type { DocumentItem } from '../types/api';
 import { ApiError } from '../api/client';
 import Modal from '../components/Modal';
 import { useToast } from '../contexts/ToastContext';
+import PageShell from '../components/PageShell';
+import PageHeader from '../components/PageHeader';
 
 function formatDate(iso: string) {
   try {
@@ -94,16 +96,15 @@ export default function Documents() {
   };
 
   return (
-    <div className="page-layout documents-page">
-      <header className="page-layout-header">
-        <h1>Property documents</h1>
-        {!loading && (
-          <span className="page-layout-summary">
-            {list.length} document{list.length !== 1 ? 's' : ''}
-          </span>
-        )}
-      </header>
-
+    <PageShell
+      header={
+        <PageHeader
+          title="Property documents"
+          subtitle={!loading ? `${list.length} document${list.length !== 1 ? 's' : ''}` : undefined}
+          userEmail={user?.email}
+        />
+      }
+    >
       {error && <div className="auth-error" style={{ marginBottom: 16 }} role="alert">{error}</div>}
 
       <div className="page-layout-table-card documents-table-card documents-desktop">
@@ -249,6 +250,6 @@ export default function Documents() {
           </div>
         )}
       </Modal>
-    </div>
+    </PageShell>
   );
 }

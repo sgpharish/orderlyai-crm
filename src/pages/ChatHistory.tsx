@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { chat } from '../api/endpoints';
 import type { ChatHistoryResponse } from '../types/api';
 import { ApiError } from '../api/client';
 import { conversationStatusLabel, conversationStatusBadgeClass } from '../utils/conversationStatus';
+import PageShell from '../components/PageShell';
+import PageHeader from '../components/PageHeader';
+import { useToast } from '../contexts/ToastContext';
 
 const LIMIT = 20;
 
@@ -20,6 +23,7 @@ function formatDate(iso: string) {
 export default function ChatHistory() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [status, setStatus] = useState<'all' | 'active' | 'closed'>('all');
   const [platform, setPlatform] = useState<'all' | 'web' | 'whatsapp' | 'sms'>('all');
   const [dateFrom, setDateFrom] = useState('');
@@ -30,8 +34,17 @@ export default function ChatHistory() {
   const [data, setData] = useState<ChatHistoryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const propertyId = user?.propertyId ?? '';
+
+  const activeChips: { key: string; label: string; onClear: () => void }[] = [];
+  if (status !== 'all') activeChips.push({ key: 'status', label: `Status: ${status === 'active' ? 'Active' : 'Closed'}`, onClear: () => { setStatus('all'); setOffset(0); } });
+  if (platform !== 'all') activeChips.push({ key: 'platform', label: `Platform: ${platform === 'whatsapp' ? 'WhatsApp' : platform === 'sms' ? 'SMS' : 'Web'}`, onClear: () => { setPlatform('all'); setOffset(0); } });
+  if (dateFrom) activeChips.push({ key: 'dateFrom', label: `From: ${dateFrom}`, onClear: () => { setDateFrom(''); setOffset(0); } });
+  if (dateTo) activeChips.push({ key: 'dateTo', label: `To: ${dateTo}`, onClear: () => { setDateTo(''); setOffset(0); } });
+  if (guestPhone.trim()) activeChips.push({ key: 'guestPhone', label: `Phone: ${guestPhone.trim()}`, onClear: () => { setGuestPhone(''); setOffset(0); } });
+  if (search.trim()) activeChips.push({ key: 'search', label: `Search: "${search.trim().slice(0, 20)}${search.trim().length > 20 ? '…' : ''}"`, onClear: () => { setSearch(''); setOffset(0); } });
 
   const fetchHistory = useCallback(async () => {
     if (!propertyId) return;
@@ -65,17 +78,16 @@ export default function ChatHistory() {
   const total = data?.total ?? 0;
 
   return (
-    <div className="page-layout">
-      <header className="page-layout-header">
-        <h1>Chat history</h1>
-        {!loading && data != null && (
-          <span className="page-layout-summary">
-            {total} conversation{total !== 1 ? 's' : ''} total
-          </span>
-        )}
-      </header>
-
-      <section className="page-layout-filters" aria-label="Filter conversations">
+    <PageShell
+      header={
+        <PageHeader
+          title="Chat history"
+          subtitle={!loading && data != null ? `${total} conversation${total !== 1 ? 's' : ''} total` : undefined}
+          userEmail={user?.email}
+        />
+      }
+    >
+      <section className="page-layout-filters chat-history-filters filter-control-panel" aria-label="Filter conversations">
         <h2 className="page-layout-filters-title">Filters</h2>
         <div className="page-layout-filter-row">
           <div className="page-layout-filter-group">
@@ -91,8 +103,6 @@ export default function ChatHistory() {
               </button>
             ))}
           </div>
-        </div>
-        <div className="page-layout-filter-row">
           <div className="page-layout-filter-group">
             <span className="section-header">Platform</span>
             {(['all', 'web', 'whatsapp', 'sms'] as const).map((p) => (
@@ -107,18 +117,40 @@ export default function ChatHistory() {
             ))}
           </div>
         </div>
-        <div className="page-layout-filter-row">
-          <div className="page-layout-filter-group">
-            <label htmlFor="chat-date-from">From</label>
-            <input id="chat-date-from" type="date" className="input-text" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }} style={{ width: 160 }} />
+        {activeChips.length > 0 && (
+          <div className="filter-active-chips">
+            {activeChips.map(({ key, label, onClear }) => (
+              <span key={key} className="filter-chip">
+                {label}
+                <button type="button" className="filter-chip-remove" onClick={onClear} aria-label={`Remove ${label}`}>×</button>
+              </span>
+            ))}
           </div>
-          <div className="page-layout-filter-group">
-            <label htmlFor="chat-date-to">To</label>
-            <input id="chat-date-to" type="date" className="input-text" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setOffset(0); }} style={{ width: 160 }} />
-          </div>
-          <input type="text" className="input-text" placeholder="Guest phone" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} onBlur={() => setOffset(0)} style={{ width: 140 }} />
-          <input type="text" className="input-text" placeholder="Search messages" value={search} onChange={(e) => setSearch(e.target.value)} onBlur={() => setOffset(0)} style={{ width: 180 }} />
+        )}
+        <div className="filter-more-toggle-wrap">
+          <button
+            type="button"
+            className="filter-more-toggle"
+            onClick={() => setMoreFiltersOpen((o) => !o)}
+            aria-expanded={moreFiltersOpen}
+          >
+            {moreFiltersOpen ? 'Less' : 'More'} filters
+          </button>
         </div>
+        {moreFiltersOpen && (
+          <div className="page-layout-filter-row filter-more-content">
+            <div className="page-layout-filter-group">
+              <label htmlFor="chat-date-from">From</label>
+              <input id="chat-date-from" type="date" className="input-text" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }} style={{ width: 160 }} />
+            </div>
+            <div className="page-layout-filter-group">
+              <label htmlFor="chat-date-to">To</label>
+              <input id="chat-date-to" type="date" className="input-text" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setOffset(0); }} style={{ width: 160 }} />
+            </div>
+            <input type="text" className="input-text" placeholder="Guest phone" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} onBlur={() => setOffset(0)} style={{ width: 140 }} />
+            <input type="text" className="input-text" placeholder="Search messages" value={search} onChange={(e) => setSearch(e.target.value)} onBlur={() => setOffset(0)} style={{ width: 180 }} />
+          </div>
+        )}
         <div className="page-layout-actions">
           <button type="button" className="btn-primary" onClick={() => fetchHistory()}>Refresh</button>
         </div>
@@ -126,36 +158,11 @@ export default function ChatHistory() {
 
       {error && <div className="auth-error" style={{ marginBottom: 16 }} role="alert">{error}</div>}
 
-      <div className="page-layout-table-card">
+      <div className="page-layout-table-card chat-history-table-card">
         {loading ? (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Guest</th>
-                <th>Platform</th>
-                <th>Status</th>
-                <th>Started</th>
-                <th>Messages</th>
-                <th>Last message</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={6}><div className="skeleton" style={{ height: 20, borderRadius: 4 }} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : !data?.conversations?.length ? (
-          <div className="empty-state">
-            <p>No conversations in this period.</p>
-            <p>Try adjusting filters or date range.</p>
-          </div>
-        ) : (
-          <>
+          <div className="page-layout-table-scroll">
             <table className="data-table">
-              <thead>
+                <thead>
                 <tr>
                   <th>Guest</th>
                   <th>Platform</th>
@@ -163,21 +170,74 @@ export default function ChatHistory() {
                   <th>Started</th>
                   <th>Messages</th>
                   <th>Last message</th>
+                  <th className="table-cell-actions"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
-                {data.conversations.map((c) => (
-                  <tr key={c.sessionId} className="clickable" onClick={() => navigate(`/chat/${c.sessionId}`)}>
-                    <td style={{ fontWeight: 500 }}>{c.guestName || c.guestPhone}</td>
-                    <td><span className={`badge badge-${c.platform}`}>{c.platform}</span></td>
-                    <td><span className={`badge badge-${conversationStatusBadgeClass(c.status)}`}>{conversationStatusLabel(c.status)}</span></td>
-                    <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(c.startedAt)}</td>
-                    <td>{c.messageCount}</td>
-                    <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{c.lastMessage ?? '—'}</td>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={7}><div className="skeleton" style={{ height: 20, borderRadius: 4 }} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : !data?.conversations?.length ? (
+          <div className="empty-state chat-history-empty">
+            <p>No conversations in this period.</p>
+            <p>Try adjusting filters or date range.</p>
+          </div>
+        ) : (
+          <>
+            <div className="page-layout-table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Guest</th>
+                    <th>Platform</th>
+                    <th>Status</th>
+                    <th>Started</th>
+                    <th>Messages</th>
+                    <th>Last message</th>
+                    <th className="table-cell-actions"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.conversations.map((c) => (
+                    <tr key={c.sessionId} className="clickable" onClick={() => navigate(`/chat/${c.sessionId}`)}>
+                      <td style={{ fontWeight: 500 }}>{c.guestName || c.guestPhone}</td>
+                      <td><span className={`badge badge-${c.platform}`}>{c.platform}</span></td>
+                      <td><span className={`badge badge-${conversationStatusBadgeClass(c.status)}`}>{conversationStatusLabel(c.status)}</span></td>
+                      <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(c.startedAt)}</td>
+                      <td>{c.messageCount}</td>
+                      <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{c.lastMessage ?? '—'}</td>
+                      <td className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
+                        <div className="table-row-actions">
+                          <Link to={`/chat/${c.sessionId}`} className="table-action-link">View</Link>
+                          <button
+                            type="button"
+                            className="table-action-btn"
+                            onClick={() => showToast('info', 'Download transcript (coming soon — requires backend)')}
+                            title="Download transcript (coming soon)"
+                          >
+                            Download
+                          </button>
+                          <button
+                            type="button"
+                            className="table-action-btn"
+                            onClick={() => {
+                              navigator.clipboard.writeText(c.sessionId).then(() => showToast('success', 'Session ID copied'));
+                            }}
+                          >
+                            Copy ID
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="page-layout-pagination">
               <span>Showing {offset + 1}–{Math.min(offset + LIMIT, total)} of {total}</span>
               <div className="page-layout-pagination-buttons">
@@ -188,6 +248,6 @@ export default function ChatHistory() {
           </>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { bookings as bookingsApi } from '../api/endpoints';
 import type { BookingsResponse, Booking } from '../types/api';
 import { ApiError } from '../api/client';
+import PageShell from '../components/PageShell';
+import PageHeader from '../components/PageHeader';
+import { useAuth } from '../auth/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 
 /** Only these three statuses are filterable; "All" = no filter. */
 const STATUS_FILTER_OPTIONS = ['pending_approval', 'confirmed', 'canceled'] as const;
@@ -90,6 +94,7 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 function BookingDetailDrawer({
   booking,
+  visible = true,
   onClose,
   statusLabelFn,
   platformLabelFn,
@@ -97,6 +102,7 @@ function BookingDetailDrawer({
   formatDateTimeFn,
 }: {
   booking: Booking;
+  visible?: boolean;
   onClose: () => void;
   statusLabelFn: (s: string) => string;
   platformLabelFn: (s: string) => string;
@@ -128,12 +134,21 @@ function BookingDetailDrawer({
 
   const customer = booking.customer;
 
+  const status = (booking as Record<string, unknown>).status as string | undefined;
+
   return (
     <>
-      <div className="bookings-drawer-backdrop visible" onClick={onClose} aria-hidden />
-      <div className="bookings-drawer visible" role="dialog" aria-labelledby="booking-drawer-title">
+      <div className={`bookings-drawer-backdrop ${visible ? 'visible' : ''}`} onClick={onClose} aria-hidden />
+      <div className={`bookings-drawer ${visible ? 'visible' : ''}`} role="dialog" aria-labelledby="booking-drawer-title">
         <div className="bookings-drawer-header">
-          <h2 id="booking-drawer-title" className="bookings-drawer-title">Booking details</h2>
+          <div className="bookings-drawer-header-left">
+            <h2 id="booking-drawer-title" className="bookings-drawer-title">Booking details</h2>
+            {status != null && status !== '' && (
+              <span className={`badge badge-${(status ?? '').replace('-', '_')}`}>
+                {statusLabelFn(status)}
+              </span>
+            )}
+          </div>
           <button type="button" className="bookings-drawer-close" onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -175,6 +190,24 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [drawerClosing, setDrawerClosing] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const { showToast } = useToast();
+  const { user } = useAuth();
+
+  const closeDrawer = () => {
+    setDrawerClosing(true);
+    setTimeout(() => {
+      setSelectedBooking(null);
+      setDrawerClosing(false);
+    }, 220);
+  };
+
+  const activeChips: { key: string; label: string; onClear: () => void }[] = [];
+  if (statusFilter) activeChips.push({ key: 'status', label: `Status: ${statusLabel(statusFilter)}`, onClear: () => { setStatusFilter(''); setPage(1); } });
+  if (platform) activeChips.push({ key: 'platform', label: `Platform: ${platformLabel(platform)}`, onClear: () => { setPlatform(''); setPage(1); } });
+  if (startDate) activeChips.push({ key: 'startDate', label: `From: ${startDate}`, onClear: () => { setStartDate(''); setPage(1); } });
+  if (endDate) activeChips.push({ key: 'endDate', label: `To: ${endDate}`, onClear: () => { setEndDate(''); setPage(1); } });
 
   const fetchBookings = useCallback(async () => {
     setLoading(true);
@@ -208,22 +241,19 @@ export default function Bookings() {
     setPage(1);
   };
 
-  const hasActiveFilters = !!(statusFilter || platform || startDate || endDate);
-
   const rows = (data?.bookings ?? []) as Booking[];
 
   return (
-    <div className="bookings-page">
-      <header className="bookings-header">
-        <h1>Bookings</h1>
-        {!loading && data && (
-          <span className="bookings-summary">
-            {data.total} booking{data.total !== 1 ? 's' : ''} total
-          </span>
-        )}
-      </header>
-
-      <section className="bookings-filters" aria-label="Filter bookings">
+    <PageShell
+      header={
+        <PageHeader
+          title="Bookings"
+          subtitle={!loading && data ? `${data.total} booking${data.total !== 1 ? 's' : ''} total` : undefined}
+          userEmail={user?.email}
+        />
+      }
+    >
+      <section className="bookings-filters filter-control-panel" aria-label="Filter bookings">
         <h2 className="bookings-filters-title">Filters</h2>
         <div className="bookings-filter-row">
           <div className="bookings-filter-group">
@@ -235,19 +265,17 @@ export default function Bookings() {
             >
               All
             </button>
-{STATUS_FILTER_OPTIONS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`chip ${statusFilter === s ? 'chip-active' : ''}`}
-              onClick={() => { setStatusFilter(s); setPage(1); }}
-            >
-              {statusLabel(s)}
-            </button>
-          ))}
+            {STATUS_FILTER_OPTIONS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`chip ${statusFilter === s ? 'chip-active' : ''}`}
+                onClick={() => { setStatusFilter(s); setPage(1); }}
+              >
+                {statusLabel(s)}
+              </button>
+            ))}
           </div>
-        </div>
-        <div className="bookings-filter-row">
           <div className="bookings-filter-group">
             <span className="section-header">Platform</span>
             <button
@@ -269,36 +297,53 @@ export default function Bookings() {
             ))}
           </div>
         </div>
-        <div className="bookings-filter-row">
-          <div className="bookings-filter-group">
-            <label htmlFor="bookings-date-from">From</label>
-            <input
-              id="bookings-date-from"
-              type="date"
-              className="input-text"
-              value={startDate}
-              onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-              style={{ width: 160 }}
-            />
+        {activeChips.length > 0 && (
+          <div className="filter-active-chips">
+            {activeChips.map(({ key, label, onClear }) => (
+              <span key={key} className="filter-chip">
+                {label}
+                <button type="button" className="filter-chip-remove" onClick={onClear} aria-label={`Remove ${label}`}>×</button>
+              </span>
+            ))}
           </div>
-          <div className="bookings-filter-group">
-            <label htmlFor="bookings-date-to">To</label>
-            <input
-              id="bookings-date-to"
-              type="date"
-              className="input-text"
-              value={endDate}
-              onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-              style={{ width: 160 }}
-            />
-          </div>
+        )}
+        <div className="filter-more-toggle-wrap">
+          <button
+            type="button"
+            className="filter-more-toggle"
+            onClick={() => setMoreFiltersOpen((o) => !o)}
+            aria-expanded={moreFiltersOpen}
+          >
+            {moreFiltersOpen ? 'Less' : 'More'} filters
+          </button>
         </div>
+        {moreFiltersOpen && (
+          <div className="bookings-filter-row filter-more-content">
+            <div className="bookings-filter-group">
+              <label htmlFor="bookings-date-from">From</label>
+              <input
+                id="bookings-date-from"
+                type="date"
+                className="input-text"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                style={{ width: 160 }}
+              />
+            </div>
+            <div className="bookings-filter-group">
+              <label htmlFor="bookings-date-to">To</label>
+              <input
+                id="bookings-date-to"
+                type="date"
+                className="input-text"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                style={{ width: 160 }}
+              />
+            </div>
+          </div>
+        )}
         <div className="bookings-actions">
-          {hasActiveFilters && (
-            <button type="button" className="btn-secondary" onClick={clearFilters}>
-              Clear filters
-            </button>
-          )}
           <button type="button" className="btn-primary" onClick={() => fetchBookings()}>
             Refresh
           </button>
@@ -312,7 +357,7 @@ export default function Bookings() {
       )}
 
       <div className="bookings-table-wrap">
-        <div className="bookings-table-scroll">
+        <div className="bookings-table-scroll page-layout-table-scroll">
           {loading ? (
             <table className="data-table">
               <thead>
@@ -323,12 +368,13 @@ export default function Bookings() {
                   <th>Status</th>
                   <th>Platform</th>
                   <th>Created</th>
+                  <th className="table-cell-actions"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
                 {Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <div className="skeleton" style={{ height: 20, borderRadius: 4 }} />
                     </td>
                   </tr>
@@ -353,6 +399,7 @@ export default function Bookings() {
                   <th>Status</th>
                   <th>Platform</th>
                   <th>Created</th>
+                  <th className="table-cell-actions"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -381,6 +428,22 @@ export default function Bookings() {
                     </td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>
                       {b.createdAt ? formatDate(b.createdAt) : '—'}
+                    </td>
+                    <td className="table-cell-actions" onClick={(e) => e.stopPropagation()}>
+                      <div className="table-row-actions">
+                        <button type="button" className="table-action-btn" onClick={() => setSelectedBooking(b)}>
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          className="table-action-btn"
+                          onClick={() => {
+                            navigator.clipboard.writeText(String(b.id)).then(() => showToast('success', 'Booking ID copied'));
+                          }}
+                        >
+                          Copy ID
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -418,13 +481,14 @@ export default function Bookings() {
       {selectedBooking && (
         <BookingDetailDrawer
           booking={selectedBooking}
-          onClose={() => setSelectedBooking(null)}
+          visible={!drawerClosing}
+          onClose={closeDrawer}
           statusLabelFn={statusLabel}
           platformLabelFn={platformLabel}
           formatDateFn={formatDate}
           formatDateTimeFn={formatDateTime}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

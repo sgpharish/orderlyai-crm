@@ -7,7 +7,3 @@
   cursor: pointer;
   text-align: left;
 }
-
-.sidebar-nav .sidebar-nav-btn:hover {
-  background: var(--glass);
-}

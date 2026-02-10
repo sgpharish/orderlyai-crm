@@ -3,9 +3,13 @@ import { Link, useParams } from 'react-router-dom';
 import { documents as docsApi } from '../api/endpoints';
 import { ApiError } from '../api/client';
 import type { DocumentViewResponse } from '../types/api';
+import PageShell from '../components/PageShell';
+import PageHeader from '../components/PageHeader';
+import { useAuth } from '../auth/AuthContext';
 
 export default function DocumentView() {
   const { documentId } = useParams<{ documentId: string }>();
+  const { user } = useAuth();
   const [doc, setDoc] = useState<DocumentViewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,46 +36,52 @@ export default function DocumentView() {
 
   if (!documentId) {
     return (
-      <div className="page-layout"><p className="auth-error" role="alert">Missing document ID.</p></div>
+      <PageShell>
+        <p className="auth-error" role="alert">Missing document ID.</p>
+      </PageShell>
     );
   }
 
   if (error) {
     return (
-      <div className="page-layout">
+      <PageShell>
         <p className="auth-error" role="alert">{error}</p>
         <Link to="/documents" className="back-link">Back to documents</Link>
-      </div>
+      </PageShell>
     );
   }
 
   if (loading) {
     return (
-      <div className="page-layout">
+      <PageShell>
         <div className="page-layout-content-card">
           <div className="empty-state"><p>Loading document…</p></div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (!doc?.viewUrl) {
     return (
-      <div className="page-layout">
+      <PageShell>
         <p className="auth-error" role="alert">No view URL for this document.</p>
         <Link to="/documents" className="back-link">Back to documents</Link>
-      </div>
+      </PageShell>
     );
   }
 
   const isPdf = doc.type === 'application/pdf' || doc.type === '';
 
   return (
-    <div className="page-layout">
-      <header className="page-layout-header" style={{ flexWrap: 'wrap', gap: 'var(--spacing-md)', alignItems: 'center' }}>
-        <Link to="/documents" className="back-link">Back to documents</Link>
-        <span className="page-layout-summary" style={{ fontWeight: 500 }}>{doc.name}</span>
-      </header>
+    <PageShell
+      header={
+        <PageHeader
+          title={doc.name}
+          breadcrumbs={[{ label: 'Documents', href: '/documents' }, { label: 'View' }]}
+          userEmail={user?.email}
+        />
+      }
+    >
       <div className="page-layout-content-card" style={{ padding: 0, overflow: 'hidden', minHeight: 480 }}>
         {isPdf ? (
           <iframe
@@ -86,6 +96,6 @@ export default function DocumentView() {
           </div>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }

@@ -22,6 +22,8 @@ import type {
   GuestAnalyticsResponse,
 } from '../types/api';
 import { ApiError } from '../api/client';
+import PageShell from '../components/PageShell';
+import PageHeader from '../components/PageHeader';
 
 type TabId = 'messages' | 'bookings' | 'conversations' | 'guests';
 
@@ -134,11 +136,7 @@ export default function Analytics() {
   const selectTab = (tab: TabId) => navigate(`/analytics/${tab}`);
 
   return (
-    <div className="page-layout">
-      <header className="page-layout-header">
-        <h1>Analytics</h1>
-      </header>
-
+    <PageShell header={<PageHeader title="Analytics" userEmail={user?.email} />}>
       <section className="page-layout-filters" aria-label="Date and options">
         <h2 className="page-layout-filters-title">Date range & options</h2>
         <div className="page-layout-filter-row">
@@ -196,15 +194,48 @@ export default function Analytics() {
           <GuestsView data={guestsData} loading={loading.guests} />
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
 
+const DURATION_MS = 600;
+
+function useCountUp(value: number, enabled: boolean) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!enabled || typeof value !== 'number') {
+      setDisplay(value);
+      return;
+    }
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      setDisplay(value);
+      return;
+    }
+    setDisplay(0);
+    const start = performance.now();
+    const run = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / DURATION_MS);
+      const eased = 1 - (1 - t) * (1 - t);
+      setDisplay(Math.round(eased * value));
+      if (t < 1) requestAnimationFrame(run);
+    };
+    const id = requestAnimationFrame(run);
+    return () => cancelAnimationFrame(id);
+  }, [value, enabled]);
+  return display;
+}
+
 function KpiCard({ label, value }: { label: string; value: number | string }) {
+  const num = typeof value === 'number' ? value : parseInt(String(value), 10);
+  const isNumeric = !Number.isNaN(num);
+  const countUp = useCountUp(isNumeric ? num : 0, isNumeric);
+  const displayValue = isNumeric ? countUp : value;
   return (
-    <div className="glass-panel glass" style={{ padding: 20, borderRadius: 12, minWidth: 120 }}>
-      <div className="section-header" style={{ marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-text-primary)' }}>{value}</div>
+    <div className="analytics-kpi-card glass-panel glass">
+      <div className="analytics-kpi-label">{label}</div>
+      <div className="analytics-kpi-value">{displayValue}</div>
     </div>
   );
 }
@@ -232,7 +263,7 @@ function MessagesView({ data, loading, groupByDay }: { data: MessageAnalyticsRes
         <KpiCard label="Concierge" value={data.byType.concierge} />
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
-        <div className="glass-panel glass" style={{ padding: 20, borderRadius: 12, minWidth: 200 }}>
+        <div className="analytics-chart-card glass-panel glass" style={{ minWidth: 200 }}>
           <div className="section-header" style={{ marginBottom: 12 }}>By platform</div>
           {platformPie.length ? (
             <ResponsiveContainer width={220} height={180}>
@@ -245,7 +276,7 @@ function MessagesView({ data, loading, groupByDay }: { data: MessageAnalyticsRes
             </ResponsiveContainer>
           ) : <p style={{ margin: 0, color: 'var(--color-text-muted)' }}>No data</p>}
         </div>
-        <div className="glass-panel glass" style={{ padding: 20, borderRadius: 12, minWidth: 200 }}>
+        <div className="analytics-chart-card glass-panel glass" style={{ minWidth: 200 }}>
           <div className="section-header" style={{ marginBottom: 12 }}>By type</div>
           {typePie.length ? (
             <ResponsiveContainer width={220} height={180}>
@@ -260,7 +291,7 @@ function MessagesView({ data, loading, groupByDay }: { data: MessageAnalyticsRes
         </div>
       </div>
       {groupByDay && data.daily && data.daily.length > 0 && (
-        <div className="glass-panel glass" style={{ padding: 20, borderRadius: 12 }}>
+        <div className="analytics-chart-card glass-panel glass">
           <div className="section-header" style={{ marginBottom: 12 }}>Daily</div>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={data.daily}>
