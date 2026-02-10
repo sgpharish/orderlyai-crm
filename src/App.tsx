@@ -4,10 +4,12 @@ import { ToastProvider } from './contexts/ToastContext';
 import ToastList from './components/ToastList';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
+import PaymentLayout from './layouts/PaymentLayout';
 import AppLayout from './layouts/AppLayout';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Payment from './pages/Payment';
 import ChatHistory from './pages/ChatHistory';
 import ChatThread from './pages/ChatThread';
 import Bookings from './pages/Bookings';
@@ -29,6 +31,9 @@ function App() {
             </Route>
             <Route path="/reset-password" element={<AuthLayout />}>
               <Route index element={<ResetPassword />} />
+            </Route>
+            <Route path="/payments" element={<PaymentLayout />}>
+              <Route index element={<Payment />} />
             </Route>
 
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>

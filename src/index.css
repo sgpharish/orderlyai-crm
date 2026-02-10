@@ -956,7 +956,9 @@ input[type="file"] {
   font-weight: var(--font-weight-medium);
 }
 .badge-active { background: var(--color-primary-light); color: var(--color-primary-focus); }
+.badge-paused { background: var(--color-status-warning-bg); color: var(--color-status-warning); }
 .badge-closed { background: var(--color-border-light); color: var(--color-text-secondary); }
+.badge-na { background: var(--color-border-light); color: var(--color-text-muted); }
 .badge-whatsapp { background: #e8f5e9; color: #2e7d32; }
 .badge-sms { background: #e3f2fd; color: #1565c0; }
 .badge-web { background: var(--glass); color: var(--color-text-secondary); }

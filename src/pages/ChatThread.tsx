@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { chat } from '../api/endpoints';
 import type { ChatMessagesResponse } from '../types/api';
 import { ApiError } from '../api/client';
+import { conversationStatusLabel, conversationStatusBadgeClass } from '../utils/conversationStatus';
 
 const URL_REGEX = /https?:\/\/[^\s<>"']+/gi;
 
@@ -95,7 +96,7 @@ export default function ChatThread() {
             <span className="chat-thread-guest">{session.guestName || session.guestPhone}</span>
             {session.unitNumber && <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-caption)' }}>Unit {session.unitNumber}</span>}
             <span className={`badge badge-${session.platform}`}>{session.platform}</span>
-            <span className={`badge badge-${session.status}`}>{session.status}</span>
+            <span className={`badge badge-${conversationStatusBadgeClass(session.status)}`}>{conversationStatusLabel(session.status)}</span>
             {session.assignedStaff && <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-caption)' }}>{session.assignedStaff.name}</span>}
           </div>
         </div>

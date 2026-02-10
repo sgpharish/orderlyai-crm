@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { chat } from '../api/endpoints';
 import type { ChatHistoryResponse } from '../types/api';
 import { ApiError } from '../api/client';
+import { conversationStatusLabel, conversationStatusBadgeClass } from '../utils/conversationStatus';
 
 const LIMIT = 20;
 
@@ -169,7 +170,7 @@ export default function ChatHistory() {
                   <tr key={c.sessionId} className="clickable" onClick={() => navigate(`/chat/${c.sessionId}`)}>
                     <td style={{ fontWeight: 500 }}>{c.guestName || c.guestPhone}</td>
                     <td><span className={`badge badge-${c.platform}`}>{c.platform}</span></td>
-                    <td><span className={`badge badge-${c.status}`}>{c.status}</span></td>
+                    <td><span className={`badge badge-${conversationStatusBadgeClass(c.status)}`}>{conversationStatusLabel(c.status)}</span></td>
                     <td style={{ color: 'var(--color-text-secondary)' }}>{formatDate(c.startedAt)}</td>
                     <td>{c.messageCount}</td>
                     <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text-secondary)' }}>{c.lastMessage ?? '—'}</td>

@@ -187,3 +187,33 @@ export interface GuestAnalyticsResponse {
   topGuestsByBookingCount: { customerId: string; name: string; phoneNumber: string; bookingCount: number }[];
   channelMix: { whatsapp: number; sms: number; web: number };
 }
+
+/** GET /public/payments/context — booking details for payment page */
+export interface PaymentContextResponse {
+  propertyName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  roomType: string;
+  guestCount: number;
+  totalAmount: number;
+  confirmationCode: string;
+  expiresAt: string;
+}
+
+/** POST /public/payments/submit — request body */
+export interface PaymentSubmitRequest {
+  token: string;
+  cardNumber: string;
+  cardHolderName: string;
+  expireDate: string;
+  cvv?: string;
+  zipcode?: string;
+}
+
+/** POST /public/payments/submit — response (200 with success true or false) */
+export interface PaymentSubmitResponse {
+  success: boolean;
+  confirmationNumber?: string;
+  message?: string;
+  error?: string;
+}

@@ -12,6 +12,9 @@ import type {
   BookingAnalyticsResponse,
   ConversationAnalyticsResponse,
   GuestAnalyticsResponse,
+  PaymentContextResponse,
+  PaymentSubmitRequest,
+  PaymentSubmitResponse,
 } from '../types/api';
 
 export const auth = {
@@ -76,6 +79,20 @@ export const documents = {
       method: 'PUT',
       body: formData,
       headers: {},
+    }),
+};
+
+/** Public payment flow (no auth). Token from payment link query. */
+export const payments = {
+  getContext: (token: string) =>
+    api<PaymentContextResponse>(`/public/payments/context?token=${encodeURIComponent(token)}`, {
+      skipAuth: true,
+    }),
+  submit: (payload: PaymentSubmitRequest) =>
+    api<PaymentSubmitResponse>('/public/payments/submit', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      skipAuth: true,
     }),
 };
 
